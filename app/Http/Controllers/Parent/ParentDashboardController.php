@@ -262,13 +262,23 @@ class ParentDashboardController extends Controller
     // Helper untuk mengambil data siswa terhubung
     private function getStudentByParentUser($user)
     {
-        $cleanPhone = preg_replace('/[^0-9]/', '', $user->phone ?? $user->username ?? '');
+        $cleanPhone = preg_replace('/[^0-9]/', '', $user->phone ?? $user->phone_number ?? $user->no_hp ?? $user->username ?? '');
         $cleanName = trim(preg_replace('/^(Orang\s+Tua\s*\/\s*Wali|Orang\s+Tua|Wali|Bpk|Ibu|Bapak)\s+/i', '', $user->name));
-        $cleanName = trim(str_ireplace(['Orang Tua / Wali', 'Orang Tua', 'Wali', 'Bpk', 'Ibu', 'Bapak'], '', $cleanName));
+        $cleanName = trim(str_ireplace(['Orang Tua / Wali', 'Orang Tua', 'Wali', 'Bpk', 'Ibu', 'Bapak', '(Orang Tua)'], '', $cleanName));
 
         $student = null;
 
-        // PRIORITAS 1: Cek Foreign Key Direct Relation
+        // PRIORITAS 0: Cek tabel relasi `parents` (pivot / direct relationship)
+        if (Schema::hasTable('parents')) {
+            $parentIdRecord = \Illuminate\Support\Facades\DB::table('parents')
+                ->where('user_id', $user->id)
+                ->first();
+            if ($parentIdRecord && !empty($parentIdRecord->student_id)) {
+                $student = Student::with('schoolClass')->find($parentIdRecord->student_id);
+            }
+        }
+
+        // PRIORITAS 1: Cek Foreign Key Direct Relation pada students
         if (Schema::hasColumn('students', 'parent_user_id')) {
             $student = Student::with('schoolClass')
                 ->where('parent_user_id', $user->id)
