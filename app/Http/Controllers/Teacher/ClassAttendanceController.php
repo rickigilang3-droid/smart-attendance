@@ -3,18 +3,18 @@
 namespace App\Http\Controllers\Teacher;
 
 use App\Http\Controllers\Controller;
-use App\Models\SchoolClass;
-use App\Models\Student;
 use App\Models\ClassAttendance;
 use App\Models\GateAttendance;
-use App\Models\Permission; // Model permohonan surat izin/sakit
+use App\Models\Permission;
+use App\Models\SchoolClass;
+use App\Models\Student; // Model permohonan surat izin/sakit
 use App\Models\Teacher;
 use App\Models\TeachingJournal;
 use App\Services\WhatsAppService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
-use Carbon\Carbon;
 
 class ClassAttendanceController extends Controller
 {
@@ -28,24 +28,35 @@ class ClassAttendanceController extends Controller
         } elseif (Schema::hasColumn('permissions', 'start_date')) {
             return 'start_date';
         }
+
         return 'created_at';
     }
 
     public function index(Request $request)
     {
         $teacher = Teacher::where('user_id', auth()->id())->first();
-        
+        abort_unless($teacher, 403);
+
+        $classIds = $teacher->assignedClassIds();
         $selectedClassId = $request->get('class_id');
         $classCode = $request->get('class_code');
         $attendanceDate = $request->get('date', date('Y-m-d'));
 
         $selectedClass = null;
         if ($selectedClassId) {
-            $selectedClass = SchoolClass::find($selectedClassId);
+            $selectedClass = SchoolClass::whereIn('id', $classIds)->find($selectedClassId);
         } elseif ($classCode) {
-            $selectedClass = SchoolClass::where('id', $classCode)->orWhere('name', $classCode)->first();
+            $selectedClass = SchoolClass::whereIn('id', $classIds)
+                ->where(function ($query) use ($classCode) {
+                    $query->where('id', $classCode)->orWhere('name', $classCode);
+                })
+                ->first();
         } else {
-            $selectedClass = SchoolClass::first();
+            $selectedClass = SchoolClass::whereIn('id', $classIds)->first();
+        }
+
+        if ($selectedClassId || $classCode) {
+            abort_unless($selectedClass, 403);
         }
 
         $students = collect();
@@ -56,7 +67,7 @@ class ClassAttendanceController extends Controller
         $savedNotes = [];
         $savedPermitIds = [];
 
-        if ($selectedClass && $teacher) {
+        if ($selectedClass) {
             // Ambil daftar siswa di kelas terpilih
             $students = Student::where('class_id', $selectedClass->id)
                 ->orderBy('name', 'asc')
@@ -101,51 +112,75 @@ class ClassAttendanceController extends Controller
         }
 
         // Ambil daftar kelas untuk dropdown filter
-        $classes = SchoolClass::pluck('name', 'id')->toArray();
+        $classes = SchoolClass::whereIn('id', $classIds)->pluck('name', 'id')->toArray();
 
         return view('teacher.attendance.index', [
-            'teacher'             => $teacher,
-            'selectedClass'       => $selectedClass ? $selectedClass->id : '',
-            'selectedClassModel'  => $selectedClass,
-            'students'            => $students,
-            'classes'             => $classes,
-            'attendanceDate'      => $attendanceDate,
-            'savedAttendances'    => $savedAttendances,
-            'savedNotes'          => $savedNotes,
-            'savedPermitIds'      => $savedPermitIds,
+            'teacher' => $teacher,
+            'selectedClass' => $selectedClass ? $selectedClass->id : '',
+            'selectedClassModel' => $selectedClass,
+            'students' => $students,
+            'classes' => $classes,
+            'attendanceDate' => $attendanceDate,
+            'savedAttendances' => $savedAttendances,
+            'savedNotes' => $savedNotes,
+            'savedPermitIds' => $savedPermitIds,
             'existingAttendances' => $savedAttendances,
-            'gateLogs'            => $gateLogs,
-            'approvedPermits'     => $approvedPermits,
-            'journal'             => $journal,
+            'gateLogs' => $gateLogs,
+            'approvedPermits' => $approvedPermits,
+            'journal' => $journal,
         ]);
     }
 
     public function store(Request $request)
     {
-        $request->validate([
-            'school_class_id' => 'required',
-            'date'            => 'required|date',
-            'attendances'     => 'required|array',
-            'subject'         => 'nullable|string|max:255',
-            'topic'           => 'nullable|string',
-            'late_reason'     => 'nullable|string',
-            'photo_evidence'  => 'nullable|image|mimes:jpeg,png,jpg,webp|max:3072',
+        $validated = $request->validate([
+            'school_class_id' => 'required|integer|exists:classes,id',
+            'date' => 'required|date',
+            'attendances' => 'required|array',
+            'attendances.*' => 'required|in:Hadir,Sakit,Izin,Alpa,TDK',
+            'notes' => 'sometimes|array',
+            'notes.*' => 'nullable|string|max:1000',
+            'subject' => 'nullable|string|max:255',
+            'topic' => 'nullable|string',
+            'late_reason' => 'nullable|string',
+            'photo_evidence' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:3072',
         ]);
 
         $teacher = Teacher::where('user_id', auth()->id())->first();
-        $classId = $request->school_class_id;
-        $date    = $request->date;
+        abort_unless($teacher, 403);
+
+        $classId = (int) $validated['school_class_id'];
+        abort_unless($teacher->assignedClassIds()->contains($classId), 403);
+
+        $studentIds = array_keys($validated['attendances']);
+        $normalizedStudentIds = array_map(
+            static fn ($studentId): string => (string) (int) $studentId,
+            $studentIds
+        );
+        $submittedStudentIds = array_map('strval', $studentIds);
+        abort_unless(
+            $normalizedStudentIds === $submittedStudentIds
+                && count($normalizedStudentIds) === count(array_unique($normalizedStudentIds)),
+            403
+        );
+        $studentIds = array_map('intval', $studentIds);
+        $studentsInClass = Student::where('class_id', $classId)
+            ->whereIn('id', $studentIds)
+            ->count();
+        abort_unless($studentsInClass === count($studentIds), 403);
+
+        $date = $validated['date'];
 
         // Pengecekan nama kolom kelas pada tabel class_attendances secara aman & dinamis
         $classColumn = Schema::hasColumn('class_attendances', 'class_id') ? 'class_id' : 'school_class_id';
-        
+
         $formattedDate = Carbon::parse($date)->translatedFormat('l, d F Y');
-        $currentTime   = Carbon::now('Asia/Jakarta')->format('H:i');
-        $teacherName   = $teacher ? $teacher->name : 'Guru Mata Pelajaran';
+        $currentTime = Carbon::now('Asia/Jakarta')->format('H:i');
+        $teacherName = $teacher->name;
 
         // 1. Simpan Absensi Siswa & Kirim Notifikasi WhatsApp Dinamis
-        foreach ($request->attendances as $studentId => $status) {
-            $note = $request->notes[$studentId] ?? null;
+        foreach ($validated['attendances'] as $studentId => $status) {
+            $note = $validated['notes'][$studentId] ?? null;
 
             // Simpan atau perbarui records absensi kelas
             ClassAttendance::updateOrCreate(
@@ -153,11 +188,11 @@ class ClassAttendanceController extends Controller
                     'teacher_id' => $teacher->id,
                     $classColumn => $classId,
                     'student_id' => $studentId,
-                    'date'       => $date,
+                    'date' => $date,
                 ],
                 [
                     'status' => $status,
-                    'notes'  => $status === 'TDK' ? $note : null,
+                    'notes' => $status === 'TDK' ? $note : null,
                 ]
             );
 
@@ -170,81 +205,81 @@ class ClassAttendanceController extends Controller
                 $parentPhone = null;
 
                 if (method_exists($student, 'parent') && $student->parent) {
-                    $parentPhone = $student->parent->phone 
-                        ?? $student->parent->whatsapp 
-                        ?? $student->parent->no_hp 
+                    $parentPhone = $student->parent->phone
+                        ?? $student->parent->whatsapp
+                        ?? $student->parent->no_hp
                         ?? null;
                 } elseif (method_exists($student, 'guardian') && $student->guardian) {
-                    $parentPhone = $student->guardian->phone 
-                        ?? $student->guardian->whatsapp 
-                        ?? $student->guardian->no_hp 
+                    $parentPhone = $student->guardian->phone
+                        ?? $student->guardian->whatsapp
+                        ?? $student->guardian->no_hp
                         ?? null;
                 }
 
-                if (!$parentPhone) {
-                    $parentPhone = $student->parent_phone 
-                        ?? $student->phone 
-                        ?? $student->no_hp 
+                if (! $parentPhone) {
+                    $parentPhone = $student->parent_phone
+                        ?? $student->phone
+                        ?? $student->no_hp
                         ?? null;
                 }
 
                 // Kirim Notifikasi WA jika Nomor HP Orang Tua ditemukan
                 if ($parentPhone) {
                     $statusClean = strtolower(trim($status));
-                    $message = "";
+                    $message = '';
 
                     if (in_array($statusClean, ['hadir', 'h', 'present'])) {
                         // 1. Pesan Siswa Hadir
-                        $message  = "🔔 *[PORTAL SEKOLAH PINTAR SMA XYZ JAKARTA]*\n\n";
+                        $message = "🔔 *[PORTAL SEKOLAH PINTAR SMA XYZ JAKARTA]*\n\n";
                         $message .= "Yth. Bapak/Ibu Wali Murid dari *{$student->name}*,\n\n";
                         $message .= "Diberitahukan bahwa putra/putri Anda dikonfirmasi *HADIR* di dalam kelas pada jam pelajaran oleh Guru Kelas ({$teacherName}).\n\n";
                         $message .= "📅 *Tanggal:* {$formattedDate}\n";
                         $message .= "⏰ *Waktu Absen:* {$currentTime} WIB\n\n";
                         $message .= "Terima kasih atas perhatian Anda.\n";
-                        $message .= "_SMA XYZ JAKARTA - Smart School System_";
+                        $message .= '_SMA XYZ JAKARTA - Smart School System_';
 
                     } elseif (in_array($statusClean, ['sakit', 's', 'sick'])) {
                         // 2. Pesan Siswa Sakit
-                        $message  = "🔔 *[PORTAL SEKOLAH PINTAR SMA XYZ JAKARTA]*\n\n";
+                        $message = "🔔 *[PORTAL SEKOLAH PINTAR SMA XYZ JAKARTA]*\n\n";
                         $message .= "Yth. Bapak/Ibu Wali Murid dari *{$student->name}*,\n\n";
                         $message .= "Informasi Kehadiran Kelas: Status putra/putri Anda hari ini dicatat *SAKIT* oleh Guru Kelas ({$teacherName}).\n\n";
                         $message .= "📅 *Tanggal:* {$formattedDate}\n\n";
                         $message .= "Semoga putra/putri Anda lekas sembuh.\n";
-                        $message .= "_SMA XYZ JAKARTA - Smart School System_";
+                        $message .= '_SMA XYZ JAKARTA - Smart School System_';
 
                     } elseif (in_array($statusClean, ['izin', 'i', 'permit'])) {
                         // 3. Pesan Siswa Izin
-                        $message  = "🔔 *[PORTAL SEKOLAH PINTAR SMA XYZ JAKARTA]*\n\n";
+                        $message = "🔔 *[PORTAL SEKOLAH PINTAR SMA XYZ JAKARTA]*\n\n";
                         $message .= "Yth. Bapak/Ibu Wali Murid dari *{$student->name}*,\n\n";
                         $message .= "Informasi Kehadiran Kelas: Status putra/putri Anda hari ini dicatat *IZIN* oleh Guru Kelas ({$teacherName}).\n\n";
                         $message .= "📅 *Tanggal:* {$formattedDate}\n\n";
                         $message .= "Terima kasih.\n";
-                        $message .= "_SMA XYZ JAKARTA - Smart School System_";
+                        $message .= '_SMA XYZ JAKARTA - Smart School System_';
 
                     } elseif (in_array($statusClean, ['alpha', 'alpa', 'a'])) {
                         // 4. Pesan Siswa Alpha (Tanpa Keterangan)
-                        $message  = "⚠️ *[PERINGATAN KEHADIRAN - SMA XYZ JAKARTA]*\n\n";
+                        $message = "⚠️ *[PERINGATAN KEHADIRAN - SMA XYZ JAKARTA]*\n\n";
                         $message .= "Yth. Bapak/Ibu Wali Murid dari *{$student->name}*,\n\n";
                         $message .= "Diberitahukan bahwa putra/putri Anda *TIDAK HADIR TANPA KETERANGAN (ALPHA)* di dalam kelas saat jam pelajaran berlangsung oleh Guru ({$teacherName}).\n\n";
                         $message .= "📅 *Tanggal:* {$formattedDate}\n\n";
                         $message .= "📌 *Mohon segera hubungi pihak sekolah / Wali Kelas untuk mengonfirmasi keberadaan putra/putri Anda.*\n";
-                        $message .= "_SMA XYZ JAKARTA - Smart School System_";
+                        $message .= '_SMA XYZ JAKARTA - Smart School System_';
 
                     } elseif (in_array($statusClean, ['tdk', 'tidak_di_kelas'])) {
                         // 5. Pesan Khusus TDK (Siswa Tap Gerbang tetapi Tidak Ada di Kelas)
-                        $noteText = $note ? "\n📝 *Catatan Guru:* {$note}" : "";
+                        $noteText = $note ? "\n📝 *Catatan Guru:* {$note}" : '';
 
-                        $message  = "🚨 *[PERINGATAN PENTING - SMA XYZ JAKARTA]*\n\n";
+                        $message = "🚨 *[PERINGATAN PENTING - SMA XYZ JAKARTA]*\n\n";
                         $message .= "Yth. Bapak/Ibu Wali Murid dari *{$student->name}*,\n\n";
                         $message .= "PERHATIAN: Putra/putri Anda terdata sudah *Tap Masuk Gerbang Sekolah*, tetapi *TIDAK BERADA DI KELAS (TDK)* saat jam pelajaran berlangsung oleh Guru ({$teacherName}).{$noteText}\n\n";
                         $message .= "📅 *Tanggal:* {$formattedDate}\n";
                         $message .= "⏰ *Waktu Pengecekan:* {$currentTime} WIB\n\n";
                         $message .= "📌 *Mohon segera hubungi putra/putri Anda atau Wali Kelas demi keamanan siswa.*\n";
-                        $message .= "_SMA XYZ JAKARTA - Smart School System_";
+                        $message .= '_SMA XYZ JAKARTA - Smart School System_';
                     }
 
                     // Kirim pesan WA melalui WhatsAppService jika template pesan terbentuk
-                    if (!empty($message)) {
+                    if (! empty($message)) {
                         WhatsAppService::sendMessage($parentPhone, $message);
                     }
                 }
@@ -254,12 +289,12 @@ class ClassAttendanceController extends Controller
         // 2. Simpan Berita Acara & Alasan Terlambat Buka Kelas
         $journal = TeachingJournal::firstOrNew([
             'teacher_id' => $teacher->id,
-            'class_id'   => $classId,
-            'date'       => $date,
+            'class_id' => $classId,
+            'date' => $date,
         ]);
 
-        $journal->subject            = $request->subject ?? $request->subject_name;
-        $journal->topic              = $request->topic;
+        $journal->subject = $request->subject ?? $request->subject_name;
+        $journal->topic = $request->topic;
         $journal->activities_summary = $request->activities_summary ?? $request->notes_journal;
 
         if ($request->filled('late_reason') && Schema::hasColumn('teaching_journals', 'late_reason')) {
@@ -287,7 +322,9 @@ class ClassAttendanceController extends Controller
     public function recap(Request $request)
     {
         $teacher = Teacher::where('user_id', auth()->id())->first();
+        abort_unless($teacher, 403);
 
+        $classIds = $teacher->assignedClassIds();
         $selectedClassId = $request->get('class_id');
         $classCode = $request->get('class_code');
         $selectedMonth = $request->get('month', date('m'));
@@ -299,11 +336,19 @@ class ClassAttendanceController extends Controller
 
         $selectedClass = null;
         if ($selectedClassId) {
-            $selectedClass = SchoolClass::find($selectedClassId);
+            $selectedClass = SchoolClass::whereIn('id', $classIds)->find($selectedClassId);
         } elseif ($classCode) {
-            $selectedClass = SchoolClass::where('id', $classCode)->orWhere('name', $classCode)->first();
+            $selectedClass = SchoolClass::whereIn('id', $classIds)
+                ->where(function ($query) use ($classCode) {
+                    $query->where('id', $classCode)->orWhere('name', $classCode);
+                })
+                ->first();
         } else {
-            $selectedClass = SchoolClass::first();
+            $selectedClass = SchoolClass::whereIn('id', $classIds)->first();
+        }
+
+        if ($selectedClassId || $classCode) {
+            abort_unless($selectedClass, 403);
         }
 
         $students = collect();
@@ -311,7 +356,7 @@ class ClassAttendanceController extends Controller
         $dailyAttendances = collect();
         $teachingJournal = null;
 
-        if ($selectedClass && $teacher) {
+        if ($selectedClass) {
             $students = Student::where('class_id', $selectedClass->id)
                 ->orderBy('name', 'asc')
                 ->get();
@@ -334,9 +379,9 @@ class ClassAttendanceController extends Controller
                 $recapData[$student->id] = [
                     'hadir' => $attendances->whereIn('status', ['Hadir', 'H', 'present'])->count(),
                     'sakit' => $attendances->whereIn('status', ['Sakit', 'S', 'sick'])->count(),
-                    'izin'  => $attendances->whereIn('status', ['Izin', 'I', 'permit'])->count(),
+                    'izin' => $attendances->whereIn('status', ['Izin', 'I', 'permit'])->count(),
                     'alpha' => $attendances->whereIn('status', ['Alpa', 'Alpha', 'A', 'alpha'])->count(),
-                    'tdk'   => $attendances->where('status', 'TDK')->count(),
+                    'tdk' => $attendances->where('status', 'TDK')->count(),
                     'total' => $attendances->count(),
                 ];
             }
@@ -359,21 +404,21 @@ class ClassAttendanceController extends Controller
                 ->first();
         }
 
-        $classes = SchoolClass::pluck('name', 'id')->toArray();
+        $classes = SchoolClass::whereIn('id', $classIds)->pluck('name', 'id')->toArray();
 
         return view('teacher.attendance.recap', [
-            'teacher'            => $teacher,
-            'selectedClass'      => $selectedClass ? $selectedClass->id : '',
+            'teacher' => $teacher,
+            'selectedClass' => $selectedClass ? $selectedClass->id : '',
             'selectedClassModel' => $selectedClass,
-            'students'           => $students,
-            'classes'            => $classes,
-            'selectedMonth'      => $selectedMonth,
-            'selectedYear'       => $selectedYear,
-            'selectedDate'       => $selectedDate,
-            'viewType'           => $viewType,
-            'recapData'          => $recapData,
-            'dailyAttendances'   => $dailyAttendances,
-            'teachingJournal'    => $teachingJournal,
+            'students' => $students,
+            'classes' => $classes,
+            'selectedMonth' => $selectedMonth,
+            'selectedYear' => $selectedYear,
+            'selectedDate' => $selectedDate,
+            'viewType' => $viewType,
+            'recapData' => $recapData,
+            'dailyAttendances' => $dailyAttendances,
+            'teachingJournal' => $teachingJournal,
         ]);
     }
 }

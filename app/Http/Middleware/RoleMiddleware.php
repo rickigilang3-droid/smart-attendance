@@ -15,7 +15,7 @@ class RoleMiddleware
     public function handle(Request $request, Closure $next, ...$roles): Response
     {
         // 1. Cek apakah user sudah login
-        if (!Auth::check()) {
+        if (! Auth::check()) {
             return redirect()->route('login');
         }
 
@@ -42,7 +42,6 @@ class RoleMiddleware
             return $next($request);
         }
 
-        // 7. Fallback Aman: Lanjutkan request agar tidak me-redirect atau memicu bouncing ke halaman sebelumnya
-        return $next($request);
+        abort(403);
     }
 }

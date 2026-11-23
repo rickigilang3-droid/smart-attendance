@@ -1,28 +1,29 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Admin\AdminDashboardController;
-use App\Http\Controllers\Admin\StudentController;
-use App\Http\Controllers\Admin\ClassController;
-use App\Http\Controllers\Admin\TeacherController;
-use App\Http\Controllers\Admin\LessonScheduleController;
-use App\Http\Controllers\Admin\GateAttendanceController;
-use App\Http\Controllers\Admin\AttendanceReportController;
-use App\Http\Controllers\Admin\AnnouncementController;
-use App\Http\Controllers\Admin\OrganizationStructureController;
 use App\Http\Controllers\Admin\AdminReportCardController;
-use App\Http\Controllers\Teacher\TeacherDashboardController;
-use App\Http\Controllers\Teacher\ClassAttendanceController;
-use App\Http\Controllers\Teacher\TeacherGradeController;
-use App\Http\Controllers\Principal\PrincipalDashboardController;
+use App\Http\Controllers\Admin\AnnouncementController;
+use App\Http\Controllers\Admin\AttendanceReportController;
+use App\Http\Controllers\Admin\ClassController;
+use App\Http\Controllers\Admin\GateAttendanceController;
+use App\Http\Controllers\Admin\LessonScheduleController;
+use App\Http\Controllers\Admin\OrganizationStructureController;
+use App\Http\Controllers\Admin\StudentController;
+use App\Http\Controllers\Admin\TeacherController;
 use App\Http\Controllers\Parent\ParentDashboardController;
+use App\Http\Controllers\Principal\PrincipalDashboardController;
+use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\Teacher\ClassAttendanceController;
+use App\Http\Controllers\Teacher\TeacherDashboardController;
+use App\Http\Controllers\Teacher\TeacherGradeController;
+use Illuminate\Support\Facades\Route;
 
 // Rute Utama
 Route::get('/', function () {
     if (auth()->check()) {
         return redirect()->route('dashboard');
     }
+
     return redirect()->route('login');
 });
 
@@ -36,19 +37,15 @@ Route::middleware(['auth'])->group(function () {
     // Redirection Dashboard Sesuai Role (Aman & Fleksibel)
     Route::get('/dashboard', function () {
         $user = auth()->user();
-        $roleName = strtolower($user->role->name ?? $user->role ?? 'admin');
+        $roleName = strtolower(trim($user->role->name ?? $user->role ?? ''));
 
-        if (str_contains($roleName, 'admin')) {
-            return redirect()->route('admin.dashboard');
-        } elseif (str_contains($roleName, 'teacher') || str_contains($roleName, 'guru')) {
-            return redirect()->route('teacher.dashboard');
-        } elseif (str_contains($roleName, 'principal') || str_contains($roleName, 'kepala')) {
-            return redirect()->route('principal.dashboard');
-        } elseif (str_contains($roleName, 'parent') || str_contains($roleName, 'ortu')) {
-            return redirect()->route('parent.dashboard');
-        }
-
-        return redirect()->route('admin.dashboard');
+        return match ($roleName) {
+            'admin', 'administrator' => redirect()->route('admin.dashboard'),
+            'teacher', 'guru' => redirect()->route('teacher.dashboard'),
+            'principal', 'kepsek', 'kepala sekolah' => redirect()->route('principal.dashboard'),
+            'parent', 'orang tua', 'orangtua', 'ortu' => redirect()->route('parent.dashboard'),
+            default => abort(403),
+        };
     })->name('dashboard');
 
     // Profile Routes
@@ -57,7 +54,7 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
     // Admin Routes
-    Route::prefix('admin')->name('admin.')->group(function () {
+    Route::prefix('admin')->name('admin.')->middleware('role:admin,administrator')->group(function () {
         Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
 
         Route::resource('classes', ClassController::class);
@@ -85,7 +82,7 @@ Route::middleware(['auth'])->group(function () {
     });
 
     // Teacher Routes
-    Route::prefix('teacher')->name('teacher.')->group(function () {
+    Route::prefix('teacher')->name('teacher.')->middleware('role:teacher,guru')->group(function () {
         Route::get('/dashboard', [TeacherDashboardController::class, 'index'])->name('dashboard');
         Route::post('/profile/update', [TeacherDashboardController::class, 'updateProfile'])->name('profile.update');
 
@@ -115,27 +112,27 @@ Route::middleware(['auth'])->group(function () {
     });
 
     // Principal Routes
-    Route::prefix('principal')->name('principal.')->group(function () {
+    Route::prefix('principal')->name('principal.')->middleware('role:principal,kepsek,kepala sekolah')->group(function () {
         // 1. Dashboard Supervisi
         Route::get('/dashboard', [PrincipalDashboardController::class, 'index'])->name('dashboard');
-        
+
         // 2. Monitoring KBM Real-time
         Route::get('/monitoring', [PrincipalDashboardController::class, 'monitoring'])->name('monitoring');
         Route::get('/kbm', [PrincipalDashboardController::class, 'kbmMonitoring'])->name('kbm.index');
-        
+
         // 3. Kedisiplinan Guru
         Route::get('/discipline', [PrincipalDashboardController::class, 'discipline'])->name('discipline');
         Route::get('/teachers-discipline', [PrincipalDashboardController::class, 'teachersDiscipline'])->name('teachers.index');
-        
+
         // 4. Laporan & Rekapitulasi
         Route::get('/reports', [PrincipalDashboardController::class, 'reports'])->name('reports.index');
         Route::get('/report-list', [PrincipalDashboardController::class, 'reports'])->name('reports');
     });
 
     // Parent Routes
-    Route::prefix('parent')->name('parent.')->group(function () {
+    Route::prefix('parent')->name('parent.')->middleware('role:parent,orang tua,orangtua,ortu')->group(function () {
         Route::get('/dashboard', [ParentDashboardController::class, 'index'])->name('dashboard');
-        
+
         Route::post('/permission/store', [ParentDashboardController::class, 'storePermission'])->name('permission.store');
         Route::post('/permissions/store', [ParentDashboardController::class, 'storePermission'])->name('permissions.store');
 
@@ -146,4 +143,4 @@ Route::middleware(['auth'])->group(function () {
     });
 });
 
-require __DIR__ . '/auth.php';
+require __DIR__.'/auth.php';

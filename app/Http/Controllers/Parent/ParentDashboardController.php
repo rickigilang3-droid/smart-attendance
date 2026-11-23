@@ -6,14 +6,13 @@ use App\Http\Controllers\Controller;
 use App\Models\Announcement;
 use App\Models\ClassAttendance;
 use App\Models\GateAttendance;
+use App\Models\LessonSchedule;
+use App\Models\Permission;
 use App\Models\Student;
 use App\Models\TeachingJournal;
-use App\Models\Permission;
-use App\Models\LessonSchedule;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Schema;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 
 class ParentDashboardController extends Controller
 {
@@ -42,9 +41,9 @@ class ParentDashboardController extends Controller
         $monthlyRecap = [
             'hadir' => 0,
             'sakit' => 0,
-            'izin'  => 0,
+            'izin' => 0,
             'alpha' => 0,
-            'tdk'   => 0,
+            'tdk' => 0,
         ];
 
         if ($student) {
@@ -57,10 +56,10 @@ class ParentDashboardController extends Controller
 
             // Data Jadwal Pelajaran
             $dayName = Carbon::now()->locale('id')->isoFormat('dddd');
-            
+
             if ($classId) {
                 $querySchedule = LessonSchedule::with(['teacher', 'schoolClass']);
-                
+
                 if (Schema::hasColumn('lesson_schedules', 'class_id')) {
                     $querySchedule->where('class_id', $classId);
                 } elseif (Schema::hasColumn('lesson_schedules', 'school_class_id')) {
@@ -86,9 +85,9 @@ class ParentDashboardController extends Controller
                     $attendance = $attendanceQuery->first();
 
                     $sched->attendance_status = $attendance->status ?? 'Belum Diabsen';
-                    $sched->attendance_notes  = $attendance->notes ?? null;
+                    $sched->attendance_notes = $attendance->notes ?? null;
 
-                    if (!$sched->teacher) {
+                    if (! $sched->teacher) {
                         $sched->teacher_name = $sched->teacher_name ?? $sched->guru_name ?? '-';
                     } else {
                         $sched->teacher_name = $sched->teacher->name ?? $sched->teacher->user->name ?? '-';
@@ -124,9 +123,9 @@ class ParentDashboardController extends Controller
 
             $monthlyRecap['hadir'] = $monthlyAttendances->whereIn('status', ['Hadir', 'HADIR', 'H'])->count();
             $monthlyRecap['sakit'] = $monthlyAttendances->whereIn('status', ['Sakit', 'SAKIT', 'S'])->count();
-            $monthlyRecap['izin']  = $monthlyAttendances->whereIn('status', ['Izin', 'IZIN', 'I'])->count();
+            $monthlyRecap['izin'] = $monthlyAttendances->whereIn('status', ['Izin', 'IZIN', 'I'])->count();
             $monthlyRecap['alpha'] = $monthlyAttendances->whereIn('status', ['Alpha', 'ALPHA', 'A'])->count();
-            $monthlyRecap['tdk']   = $monthlyAttendances->whereIn('status', ['TDK', 'tdk'])->count();
+            $monthlyRecap['tdk'] = $monthlyAttendances->whereIn('status', ['TDK', 'tdk'])->count();
         }
 
         // Pengumuman Ringkas Dashboard
@@ -135,7 +134,7 @@ class ParentDashboardController extends Controller
         if (Schema::hasColumn('announcements', 'target')) {
             $announcementsQuery->where(function ($q) {
                 $q->whereIn('target', ['all', 'parent', 'All', 'Parent', 'Semua', 'Orang Tua', 'ortu', 'Ortu'])
-                  ->orWhereNull('target');
+                    ->orWhereNull('target');
             });
         }
 
@@ -213,7 +212,7 @@ class ParentDashboardController extends Controller
         if (Schema::hasColumn('announcements', 'target')) {
             $query->where(function ($q) {
                 $q->whereIn('target', ['all', 'parent', 'All', 'Parent', 'Semua', 'Orang Tua', 'ortu', 'Ortu'])
-                  ->orWhereNull('target');
+                    ->orWhereNull('target');
             });
         }
 
@@ -228,12 +227,16 @@ class ParentDashboardController extends Controller
 
     public function storePermission(Request $request)
     {
-        $request->validate([
-            'student_id'  => 'required|exists:students,id',
-            'type'        => 'required|in:Sakit,Izin',
-            'start_date'  => 'required|date',
-            'end_date'    => 'required|date|after_or_equal:start_date',
-            'reason'      => 'required|string|max:500',
+        $student = $this->getStudentByParentUser($request->user());
+        abort_unless($student, 403);
+        abort_unless((int) $request->input('student_id') === $student->id, 403);
+
+        $validated = $request->validate([
+            'student_id' => 'required|integer|exists:students,id',
+            'type' => 'required|in:Sakit,Izin',
+            'start_date' => 'required|date',
+            'end_date' => 'required|date|after_or_equal:start_date',
+            'reason' => 'required|string|max:500',
             'letter_file' => 'required|file|mimes:jpg,jpeg,png,pdf|max:2048',
         ]);
 
@@ -243,17 +246,17 @@ class ParentDashboardController extends Controller
         }
 
         Permission::create([
-            'student_id'     => $request->student_id,
+            'student_id' => $validated['student_id'],
             'parent_user_id' => auth()->id(),
-            'type'           => $request->type,
-            'start_date'     => $request->start_date,
-            'end_date'       => $request->end_date,
-            'reason'         => $request->reason,
-            'letter_file'    => $filePath,
-            'status'         => 'Pending',
+            'type' => $validated['type'],
+            'start_date' => $validated['start_date'],
+            'end_date' => $validated['end_date'],
+            'reason' => $validated['reason'],
+            'letter_file' => $filePath,
+            'status' => 'Pending',
         ]);
 
-        return redirect()->back()->with('success', 'Surat ' . $request->type . ' berhasil diunggah dan menunggu konfirmasi Guru.');
+        return redirect()->back()->with('success', 'Surat '.$validated['type'].' berhasil diunggah dan menunggu konfirmasi Guru.');
     }
 
     // Helper untuk mengambil data siswa terhubung
@@ -279,7 +282,7 @@ class ParentDashboardController extends Controller
         }
 
         // PRIORITAS 2: Cek Nomor HP
-        if (!$student && !empty($cleanPhone)) {
+        if (! $student && ! empty($cleanPhone)) {
             $student = Student::with('schoolClass')
                 ->where(function ($q) use ($cleanPhone) {
                     if (Schema::hasColumn('students', 'parent_phone')) {
@@ -294,7 +297,7 @@ class ParentDashboardController extends Controller
         }
 
         // PRIORITAS 3: Match Nama
-        if (!$student && !empty($cleanName) && strlen($cleanName) >= 3) {
+        if (! $student && ! empty($cleanName) && strlen($cleanName) >= 3) {
             $student = Student::with('schoolClass')
                 ->where(function ($q) use ($cleanName) {
                     $q->where('name', $cleanName);
