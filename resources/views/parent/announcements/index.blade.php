@@ -44,7 +44,7 @@
                                     $filePath = $item->file_attachment ?? $item->attachment;
                                 @endphp
                                 <div class="pt-2">
-                                    <a href="{{ asset('storage/' . $filePath) }}" target="_blank" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 text-xs font-bold text-slate-700 transition border border-slate-200/80">
+                                    <a href="{{ storage_media_url($filePath) }}" target="_blank" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 text-xs font-bold text-slate-700 transition border border-slate-200/80">
                                         <span>📎</span> Unduh Lampiran Berkas
                                     </a>
                                 </div>

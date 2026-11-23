@@ -250,8 +250,8 @@
                                     {{-- Foto Bukti KBM --}}
                                     <td class="c">
                                         @if($journal->photo_evidence)
-                                            <a href="{{ Storage::url($journal->photo_evidence) }}" target="_blank" class="pc-photo">
-                                                <img src="{{ Storage::url($journal->photo_evidence) }}" title="Klik untuk memperbesar foto KBM" alt="Foto KBM">
+                                            <a href="{{ storage_media_url($journal->photo_evidence) }}" target="_blank" class="pc-photo">
+                                                <img src="{{ storage_media_url($journal->photo_evidence) }}" title="Klik untuk memperbesar foto KBM" alt="Foto KBM">
                                             </a>
                                         @else
                                             <span class="pc-nophoto">Belum unggah foto</span>

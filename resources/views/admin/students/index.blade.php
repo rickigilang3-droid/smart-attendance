@@ -308,7 +308,30 @@
                 photoBox.innerHTML = '';
                 if (data.photo) {
                     const img = document.createElement('img');
-                    img.src = '/storage/' + data.photo;
+                    const supabaseUrl = @json(rtrim((string) config('services.supabase.url'), '/'));
+                    let photoUrl = '/storage/' + data.photo;
+                    if (supabaseUrl && !/^https?:\/\//.test(data.photo)) {
+                        const normalizedPath = String(data.photo).replace(/^\/+/, '');
+                        let bucket = null;
+                        if (normalizedPath.startsWith('logo-sekolah/')) {
+                            bucket = 'school-logos';
+                        } else if ([
+                            'students-photos/',
+                            'organization/',
+                            'teachers/',
+                            'teaching_evidence/',
+                            'permission_letters/',
+                        ].some((prefix) => normalizedPath.startsWith(prefix))) {
+                            bucket = 'school-private-media';
+                        }
+                        if (bucket) {
+                            const encodedPath = normalizedPath.split('/').map(encodeURIComponent).join('/');
+                            photoUrl = supabaseUrl + '/storage/v1/object/public/' + bucket + '/' + encodedPath;
+                        }
+                    } else if (/^https?:\/\//.test(data.photo)) {
+                        photoUrl = data.photo;
+                    }
+                    img.src = photoUrl;
                     img.className = 'w-full h-full object-cover';
                     photoBox.appendChild(img);
                 } else {

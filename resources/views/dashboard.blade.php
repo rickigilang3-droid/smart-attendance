@@ -112,7 +112,7 @@
                                         <td class="p-3">{{ $item->reason ?? $item->notes ?? '-' }}</td>
                                         <td class="p-3">
                                             @if($item->letter_file || $item->attachment_path)
-                                                <a href="{{ asset('storage/' . ($item->letter_file ?? $item->attachment_path)) }}" target="_blank" class="text-indigo-600 hover:underline font-bold flex items-center gap-1">
+                                                <a href="{{ storage_media_url(($item->letter_file ?? $item->attachment_path)) }}" target="_blank" class="text-indigo-600 hover:underline font-bold flex items-center gap-1">
                                                     📎 Lihat File
                                                 </a>
                                             @else

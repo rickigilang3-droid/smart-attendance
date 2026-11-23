@@ -92,7 +92,7 @@
                                 {{ $kepalaSekolah->position_title ?? 'Kepala Sekolah' }}
                             </div>
                             <div class="w-24 h-28 bg-slate-200 rounded-xl overflow-hidden border-2 border-white shadow-md mb-2">
-                                <img src="{{ $kepalaSekolah && $kepalaSekolah->photo ? asset('storage/'.$kepalaSekolah->photo) : 'https://ui-avatars.com/api/?name='.urlencode($kepalaSekolah->name ?? 'Kepala Sekolah') }}" class="w-full h-full object-cover">
+                                <img src="{{ $kepalaSekolah && $kepalaSekolah->photo ? storage_media_url($kepalaSekolah->photo) : 'https://ui-avatars.com/api/?name='.urlencode($kepalaSekolah->name ?? 'Kepala Sekolah') }}" class="w-full h-full object-cover">
                             </div>
                             <span class="font-extrabold text-sm text-yellow-300 text-center">{{ $kepalaSekolah->name ?? 'Belum Diisi' }}</span>
                             @if($kepalaSekolah)
@@ -113,7 +113,7 @@
                                         {{ $item->position_title }}
                                     </div>
                                     <div class="w-20 h-24 bg-slate-200 rounded-lg overflow-hidden border-2 border-white shadow mb-1.5">
-                                        <img src="{{ $item->photo ? asset('storage/'.$item->photo) : 'https://ui-avatars.com/api/?name='.urlencode($item->name) }}" class="w-full h-full object-cover">
+                                        <img src="{{ $item->photo ? storage_media_url($item->photo) : 'https://ui-avatars.com/api/?name='.urlencode($item->name) }}" class="w-full h-full object-cover">
                                     </div>
                                     <span class="font-bold text-xs text-yellow-200 text-center">{{ $item->name }}</span>
                                     <form action="{{ route('admin.organization-structure.destroy', $item->id) }}" method="POST" class="mt-2">
@@ -134,7 +134,7 @@
                                         {{ $item->position_title }}
                                     </div>
                                     <div class="w-16 h-20 bg-slate-200 rounded-lg overflow-hidden border border-white shadow mb-1">
-                                        <img src="{{ $item->photo ? asset('storage/'.$item->photo) : 'https://ui-avatars.com/api/?name='.urlencode($item->name) }}" class="w-full h-full object-cover">
+                                        <img src="{{ $item->photo ? storage_media_url($item->photo) : 'https://ui-avatars.com/api/?name='.urlencode($item->name) }}" class="w-full h-full object-cover">
                                     </div>
                                     <span class="font-bold text-[11px] text-yellow-200 text-center">{{ $item->name }}</span>
                                     <form action="{{ route('admin.organization-structure.destroy', $item->id) }}" method="POST" class="mt-2">
@@ -155,7 +155,7 @@
                                         {{ $item->position_title }}
                                     </div>
                                     <div class="w-16 h-20 bg-slate-200 rounded-lg overflow-hidden border border-white shadow mb-1">
-                                        <img src="{{ $item->photo ? asset('storage/'.$item->photo) : 'https://ui-avatars.com/api/?name='.urlencode($item->name) }}" class="w-full h-full object-cover">
+                                        <img src="{{ $item->photo ? storage_media_url($item->photo) : 'https://ui-avatars.com/api/?name='.urlencode($item->name) }}" class="w-full h-full object-cover">
                                     </div>
                                     <span class="font-bold text-[11px] text-yellow-200 text-center">{{ $item->name }}</span>
                                     <form action="{{ route('admin.organization-structure.destroy', $item->id) }}" method="POST" class="mt-2">

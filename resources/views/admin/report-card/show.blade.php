@@ -32,7 +32,7 @@
         <div class="text-center border-b-2 border-slate-800 pb-4 space-y-2">
             <div class="flex justify-center mb-1">
                 <img 
-                    src="{{ asset('storage/logo-sekolah/logo-sekolah.jpg') }}" 
+                    src="{{ storage_media_url('logo-sekolah/logo-sekolah.jpg') }}" 
                     onerror="this.onerror=null; this.src='https://cdn-icons-png.flaticon.com/512/2991/2991148.png';" 
                     alt="Logo SMA XYZ JAKARTA" 
                     class="w-16 h-16 object-contain"

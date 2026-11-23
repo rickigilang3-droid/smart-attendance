@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 
 class Teacher extends Model
@@ -27,12 +28,22 @@ class Teacher extends Model
      */
     public function getPhotoUrlAttribute()
     {
-        if ($this->photo && Storage::disk('public')->exists($this->photo)) {
-            return asset('storage/' . $this->photo);
+        if ($this->photo) {
+            if (str_starts_with($this->photo, 'http://') || str_starts_with($this->photo, 'https://')) {
+                return $this->photo;
+            }
+
+            if (function_exists('storage_media_url') && (config('services.supabase.url') || env('SUPABASE_URL'))) {
+                return storage_media_url($this->photo);
+            }
+
+            if (Storage::disk('public')->exists($this->photo)) {
+                return asset('storage/'.$this->photo);
+            }
         }
 
         // Default Avatar menggunakan inisial nama guru
-        return 'https://ui-avatars.com/api/?name=' . urlencode($this->name ?? 'Guru') . '&color=4F46E5&background=EEF2FF';
+        return 'https://ui-avatars.com/api/?name='.urlencode($this->name ?? 'Guru').'&color=4F46E5&background=EEF2FF';
     }
 
     /**
@@ -65,5 +76,20 @@ class Teacher extends Model
     public function homeroomClass(): HasOne
     {
         return $this->hasOne(SchoolClass::class, 'teacher_id');
+    }
+
+    /**
+     * @return Collection<int, int>
+     */
+    public function assignedClassIds(): Collection
+    {
+        $classIds = $this->lessonSchedules()->pluck('class_id');
+        $homeroomClassId = $this->homeroomClass()->value('id');
+
+        if ($homeroomClassId !== null) {
+            $classIds->push($homeroomClassId);
+        }
+
+        return $classIds->unique()->values();
     }
 }

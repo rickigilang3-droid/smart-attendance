@@ -73,7 +73,7 @@
     // Warna ikon berselang-seling agar menu tampak hidup
     $tileColors = ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#0ea5e9', '#8b5cf6', '#f97316', '#14b8a6', '#ef4444'];
     $userName = Auth::user()->name ?? 'User';
-    $logoUrl  = asset('storage/logo-sekolah/logo-sekolah.jpg');
+    $logoUrl  = storage_media_url('logo-sekolah/logo-sekolah.jpg');
     $logoFallback = 'https://cdn-icons-png.flaticon.com/512/2991/2991148.png';
 @endphp
 

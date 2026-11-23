@@ -64,7 +64,7 @@
                                         'topic'        => $journal->topic ?? '-',
                                         'summary'      => $journal->activities_summary ?? $journal->notes ?? '-',
                                         'late_reason'  => $journal->late_reason ?? null,
-                                        'photo'        => $journal->photo_evidence ? asset('storage/' . $journal->photo_evidence) : null,
+                                        'photo'        => $journal->photo_evidence ? storage_media_url($journal->photo_evidence) : null,
                                         'opened_at'    => $journal->open_time ?? '-',
                                         'is_late'      => (bool) $journal->is_late,
                                         'late_minutes' => $journal->late_minutes ?? 0

@@ -62,12 +62,20 @@
 
     $themeColor = $roleConfig['color'];
 
-    // Gambar background lokal: bg-school-1, bg-school-2, bg-school-3 (ekstensi apa pun)
+    // Gambar background: pakai Supabase Storage jika dikonfigurasi, fallback ke file lokal.
     $bgSlides = [];
-    foreach ([1, 2, 3] as $i) {
-        $found = glob(public_path("storage/logo-sekolah/bg-school-{$i}.*"));
-        if (!empty($found)) {
-            $bgSlides[] = asset('storage/logo-sekolah/' . rawurlencode(basename($found[0])));
+    $supabaseUrl = rtrim((string) (config('services.supabase.url') ?? env('SUPABASE_URL', '')), '/');
+
+    if ($supabaseUrl !== '') {
+        foreach ([1, 2, 3] as $i) {
+            $bgSlides[] = $supabaseUrl.'/storage/v1/object/public/school-logos/logo-sekolah/bg-school-'.$i.'.jpg';
+        }
+    } else {
+        foreach ([1, 2, 3] as $i) {
+            $found = glob(public_path("storage/logo-sekolah/bg-school-{$i}.*"));
+            if (!empty($found)) {
+                $bgSlides[] = asset('storage/logo-sekolah/'.rawurlencode(basename($found[0])));
+            }
         }
     }
 @endphp
@@ -105,7 +113,7 @@
             <!-- LOGO SEKOLAH -->
             <div style="width: 52px; height: 52px; margin: 0 auto 8px auto; background: #ffffff; border-radius: 14px; padding: 5px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center;">
                 <img
-                    src="{{ asset('storage/logo-sekolah/logo-sekolah.jpg') }}"
+                    src="{{ storage_media_url('logo-sekolah/logo-sekolah.jpg') }}"
                     onerror="this.onerror=null; this.src='https://cdn-icons-png.flaticon.com/512/2991/2991148.png';"
                     alt="Logo Sekolah"
                     style="width: 100%; height: 100%; object-fit: contain; border-radius: 8px;"

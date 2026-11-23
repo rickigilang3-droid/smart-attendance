@@ -165,8 +165,8 @@
                                 $photoPath = $student->photo ?? $student->avatar ?? $student->profile_photo ?? $student->user->photo ?? null;
                             @endphp
 
-                            @if($photoPath && \Illuminate\Support\Facades\Storage::disk('public')->exists($photoPath))
-                                <img src="{{ asset('storage/' . $photoPath) }}" alt="{{ $student->name }}">
+                            @if($photoPath)
+                                <img src="{{ storage_media_url($photoPath) }}" alt="{{ $student->name }}">
                             @elseif($photoPath && filter_var($photoPath, FILTER_VALIDATE_URL))
                                 <img src="{{ $photoPath }}" alt="{{ $student->name }}">
                             @else
@@ -397,7 +397,7 @@
                                             </td>
                                             <td>
                                                 @if($perm->letter_file)
-                                                    <a href="{{ asset('storage/' . $perm->letter_file) }}" target="_blank" class="lnk">
+                                                    <a href="{{ storage_media_url($perm->letter_file) }}" target="_blank" class="lnk">
                                                         📎 Lihat File
                                                     </a>
                                                 @else

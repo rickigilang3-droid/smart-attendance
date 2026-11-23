@@ -198,8 +198,8 @@
                             <div class="text-center border-t md:border-t-0 md:border-l border-slate-100 pt-4 md:pt-0 md:pl-6 flex flex-col items-center justify-center">
                                 <span class="text-[11px] font-bold text-slate-400 uppercase block mb-2">Foto Bukti Kegiatan KBM</span>
                                 @if($teachingJournal->photo_evidence)
-                                    <a href="{{ Storage::url($teachingJournal->photo_evidence) }}" target="_blank" class="block group">
-                                        <img src="{{ Storage::url($teachingJournal->photo_evidence) }}" class="w-full h-36 object-cover rounded-xl border border-slate-200 shadow-sm group-hover:scale-105 transition" alt="Foto KBM">
+                                    <a href="{{ storage_media_url($teachingJournal->photo_evidence) }}" target="_blank" class="block group">
+                                        <img src="{{ storage_media_url($teachingJournal->photo_evidence) }}" class="w-full h-36 object-cover rounded-xl border border-slate-200 shadow-sm group-hover:scale-105 transition" alt="Foto KBM">
                                         <span class="text-[10px] text-indigo-600 font-bold block mt-1">🔍 Klik untuk memperbesar</span>
                                     </a>
                                 @else
@@ -257,7 +257,7 @@
                                         </td>
                                         <td class="py-3.5 px-6">
                                             @if($att && $att->permit)
-                                                <a href="{{ Storage::url($att->permit->attachment_path ?? $att->permit->letter_file) }}" target="_blank" class="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3 py-1 rounded-lg border border-indigo-200 transition">
+                                                <a href="{{ storage_media_url($att->permit->attachment_path ?? $att->permit->letter_file) }}" target="_blank" class="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3 py-1 rounded-lg border border-indigo-200 transition">
                                                     📄 Lihat Surat {{ $att->permit->permission_type ?? 'Izin' }} (Ortu)
                                                 </a>
                                             @elseif($att && $att->notes)

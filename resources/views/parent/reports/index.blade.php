@@ -19,7 +19,7 @@
                 @if($student)
                     <div class="flex items-center gap-4 bg-white/10 p-3 rounded-2xl backdrop-blur-md border border-white/10">
                         @if($student->photo)
-                            <img src="{{ asset('storage/' . $student->photo) }}" alt="{{ $student->name }}" class="w-12 h-12 rounded-xl object-cover border-2 border-white/20">
+                            <img src="{{ storage_media_url($student->photo) }}" alt="{{ $student->name }}" class="w-12 h-12 rounded-xl object-cover border-2 border-white/20">
                         @else
                             <div class="w-12 h-12 rounded-xl bg-indigo-500/30 flex items-center justify-center text-lg font-bold border-2 border-white/20">
                                 {{ strtoupper(substr($student->name, 0, 1)) }}

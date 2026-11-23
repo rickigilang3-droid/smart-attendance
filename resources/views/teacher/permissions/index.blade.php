@@ -91,7 +91,7 @@
                                         @endphp
 
                                         @if($filePath)
-                                            <a href="{{ asset('storage/' . $filePath) }}" target="_blank" class="inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-800 font-bold underline">
+                                            <a href="{{ storage_media_url($filePath) }}" target="_blank" class="inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-800 font-bold underline">
                                                 <span>📄</span> Lihat Lampiran
                                             </a>
                                         @else

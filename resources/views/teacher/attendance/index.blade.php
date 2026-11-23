@@ -177,12 +177,12 @@
                                 <input type="file" name="photo_evidence" accept="image/*" class="block w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer border border-gray-300 rounded-xl">
                                 @if(isset($journal) && $journal->photo_evidence)
                                     <div class="flex items-center gap-2 mt-2 p-2 bg-slate-50 border border-slate-200 rounded-xl">
-                                        <a href="{{ Storage::url($journal->photo_evidence) }}" target="_blank" class="block flex-shrink-0">
-                                            <img src="{{ Storage::url($journal->photo_evidence) }}" class="w-12 h-12 object-cover rounded-lg border shadow-sm hover:scale-105 transition" title="Klik untuk memperbesar">
+                                        <a href="{{ storage_media_url($journal->photo_evidence) }}" target="_blank" class="block flex-shrink-0">
+                                            <img src="{{ storage_media_url($journal->photo_evidence) }}" class="w-12 h-12 object-cover rounded-lg border shadow-sm hover:scale-105 transition" title="Klik untuk memperbesar">
                                         </a>
                                         <div class="text-[11px] text-slate-600">
                                             <span class="font-bold text-emerald-600 block">✓ Foto Tersimpan</span>
-                                            <a href="{{ Storage::url($journal->photo_evidence) }}" target="_blank" class="text-indigo-600 hover:underline">Lihat Gambar</a>
+                                            <a href="{{ storage_media_url($journal->photo_evidence) }}" target="_blank" class="text-indigo-600 hover:underline">Lihat Gambar</a>
                                         </div>
                                     </div>
                                 @endif
@@ -252,7 +252,7 @@
                                                         📄 {{ $permit->type ?? $permit->permission_type }} (Dari Ortu)
                                                     </span>
                                                     @if($permit->attachment_path || $permit->letter_file || $permit->attachment_photo || $permit->attachment)
-                                                        <a href="{{ Storage::url($permit->attachment_path ?? $permit->letter_file ?? $permit->attachment_photo ?? $permit->attachment) }}" 
+                                                        <a href="{{ storage_media_url($permit->attachment_path ?? $permit->letter_file ?? $permit->attachment_photo ?? $permit->attachment) }}" 
                                                            target="_blank" 
                                                            class="text-[10px] text-indigo-600 hover:text-indigo-800 font-bold underline inline-flex items-center gap-1">
                                                             🔍 lihat surat
