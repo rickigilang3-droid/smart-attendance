@@ -4,7 +4,6 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 
 class MigrateStorageToSupabase extends Command
 {
@@ -13,8 +12,8 @@ class MigrateStorageToSupabase extends Command
 
     public function handle(): void
     {
-        $localDisk    = Storage::disk('public');
-        $remoteDisk   = Storage::disk('supabase');
+        $localDisk  = Storage::disk('public');
+        $remoteDisk = Storage::disk('supabase');
 
         $files = $localDisk->allFiles();
 
@@ -32,10 +31,11 @@ class MigrateStorageToSupabase extends Command
 
         foreach ($files as $file) {
             try {
+                $normalizedFile = str_replace('\\', '/', $file);
                 $contents = $localDisk->get($file);
                 $mimeType = $localDisk->mimeType($file);
 
-                $remoteDisk->put($file, $contents, [
+                $remoteDisk->put($normalizedFile, $contents, [
                     'visibility'   => 'public',
                     'ContentType'  => $mimeType,
                 ]);

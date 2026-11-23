@@ -14,29 +14,23 @@ if (! function_exists('storage_media_url')) {
         }
 
         $supabaseUrl = rtrim((string) (config('services.supabase.url') ?? env('SUPABASE_URL', '')), '/');
-
-        if ($supabaseUrl !== '') {
-            $bucket = null;
-
-            if (str_starts_with($normalizedPath, 'logo-sekolah/')) {
-                $bucket = 'school-logos';
-            } elseif (
-                str_starts_with($normalizedPath, 'students-photos/') ||
-                str_starts_with($normalizedPath, 'organization/') ||
-                str_starts_with($normalizedPath, 'teachers/') ||
-                str_starts_with($normalizedPath, 'teaching_evidence/') ||
-                str_starts_with($normalizedPath, 'permission_letters/')
-            ) {
-                $bucket = 'school-private-media';
-            }
-
-            if ($bucket !== null) {
-                $encodedPath = implode('/', array_map('rawurlencode', explode('/', $normalizedPath)));
-
-                return $supabaseUrl.'/storage/v1/object/public/'.$bucket.'/'.$encodedPath;
-            }
+        if ($supabaseUrl === '') {
+            $supabaseUrl = 'https://humyyxoupzrupvggychb.supabase.co';
         }
 
-        return asset('storage/'.$normalizedPath);
+        $bucket = 'school-logos';
+        if (
+            str_starts_with($normalizedPath, 'students-photos/') ||
+            str_starts_with($normalizedPath, 'organization/') ||
+            str_starts_with($normalizedPath, 'teachers/') ||
+            str_starts_with($normalizedPath, 'teaching_evidence/') ||
+            str_starts_with($normalizedPath, 'permission_letters/')
+        ) {
+            $bucket = 'school-private-media';
+        }
+
+        $encodedPath = implode('/', array_map('rawurlencode', explode('/', $normalizedPath)));
+
+        return $supabaseUrl.'/storage/v1/object/public/'.$bucket.'/'.$encodedPath;
     }
 }

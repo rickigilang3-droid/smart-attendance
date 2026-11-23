@@ -64,19 +64,8 @@
 
     // Gambar background: pakai Supabase Storage jika dikonfigurasi, fallback ke file lokal.
     $bgSlides = [];
-    $supabaseUrl = rtrim((string) (config('services.supabase.url') ?? env('SUPABASE_URL', '')), '/');
-
-    if ($supabaseUrl !== '') {
-        foreach ([1, 2, 3] as $i) {
-            $bgSlides[] = $supabaseUrl.'/storage/v1/object/public/school-logos/logo-sekolah/bg-school-'.$i.'.jpg';
-        }
-    } else {
-        foreach ([1, 2, 3] as $i) {
-            $found = glob(public_path("storage/logo-sekolah/bg-school-{$i}.*"));
-            if (!empty($found)) {
-                $bgSlides[] = asset('storage/logo-sekolah/'.rawurlencode(basename($found[0])));
-            }
-        }
+    foreach ([1, 2, 3] as $i) {
+        $bgSlides[] = storage_media_url("logo-sekolah/bg-school-{$i}.jpg");
     }
 @endphp
 <!DOCTYPE html>
